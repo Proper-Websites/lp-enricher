@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LP Enricher — Proper Websites</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f7f8fc;
+  --white:#ffffff;
+  --border:#e1e5f0;
+  --border2:#c8cedf;
+  --navy:#0a1628;
+  --navy2:#112040;
+  --blue:#1558e6;
+  --blue2:#0e45c4;
+  --blue-bg:#eef3ff;
+  --green:#059669;
+  --green-bg:#ecfdf5;
+  --red:#dc2626;
+  --red-bg:#fef2f2;
+  --orange:#d97706;
+  --orange-bg:#fffbeb;
+  --t1:#0a1628;
+  --t2:#4b5675;
+  --t3:#94a3b8;
+  --mono:'SF Mono','Fira Code',monospace;
+  --r:8px;
+}
+html,body{background:var(--bg);color:var(--t1);font-family:'Inter',-apple-system,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased;min-height:100vh}
+
+/* NAV */
+.nav{background:var(--navy);height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 32px;position:sticky;top:0;z-index:100}
+.nav-brand{display:flex;align-items:center;gap:10px}
+.nav-logo{width:26px;height:26px;background:var(--blue);border-radius:6px;display:grid;place-items:center;flex-shrink:0}
+.nav-logo svg{color:#fff}
+.nav-name{font-size:13px;font-weight:700;color:#fff;letter-spacing:-0.2px}
+.nav-sep{width:1px;height:12px;background:rgba(255,255,255,0.15)}
+.nav-sub{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,0.4)}
+.nav-status{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:100px;padding:4px 12px;font-size:11px;color:rgba(255,255,255,0.55);font-family:var(--mono)}
+.status-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e}
+
+/* MAIN */
+.main{max-width:1500px;margin:0 auto;padding:28px 32px 80px}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:0;background:var(--border);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+.stat{background:var(--white);padding:18px 22px;border-right:1px solid var(--border)}
+.stat:last-child{border-right:none}
+.stat-label{font-size:10px;font-weight:600;color:var(--t3);letter-spacing:.6px;text-transform:uppercase;margin-bottom:8px}
+.stat-val{font-size:26px;font-weight:800;letter-spacing:-1px;line-height:1;margin-bottom:4px}
+.stat-val.g{color:var(--green)}.stat-val.b{color:var(--blue)}.stat-val.r{color:var(--red)}.stat-val.o{color:var(--orange)}.stat-val.m{color:var(--t3)}.stat-val.n{color:var(--navy)}
+.stat-note{font-size:11px;color:var(--t3);font-family:var(--mono)}
+.stat-note a{color:var(--blue);text-decoration:none}
+
+/* TOOLBAR */
+.toolbar{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.toolbar-l{display:flex;align-items:center;gap:12px}
+.mode-lbl{font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.6px;text-transform:uppercase}
+select{appearance:none;background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") right 8px center/10px no-repeat;border:1px solid var(--border2);border-radius:6px;color:var(--t1);font-family:inherit;font-size:13px;font-weight:500;padding:7px 28px 7px 11px;cursor:pointer;outline:none;transition:border-color .15s}
+select:focus{border-color:var(--blue)}
+.toolbar-r{display:flex;align-items:center;gap:6px}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;font-family:inherit;font-size:13px;font-weight:600;border-radius:6px;padding:8px 14px;cursor:pointer;border:1px solid transparent;transition:all .15s;white-space:nowrap}
+.btn:disabled{opacity:.38;cursor:not-allowed;pointer-events:none}
+.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn-primary:hover{background:var(--blue2);border-color:var(--blue2)}
+.btn-outline{background:transparent;color:var(--t2);border-color:var(--border2)}
+.btn-outline:hover{background:var(--bg);color:var(--t1)}
+.btn-green{background:var(--green-bg);color:var(--green);border-color:rgba(5,150,105,.2)}
+.btn-green:hover{background:#d1fae5}
+.btn-red{background:var(--red-bg);color:var(--red);border-color:rgba(220,38,38,.2)}
+.btn-red:hover{background:#fee2e2}
+
+/* PROGRESS */
+.prog{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:14px 18px;margin-bottom:12px;display:none;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.prog.on{display:block}
+.prog-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.prog-txt{font-size:12px;color:var(--t2);font-family:var(--mono)}
+.prog-pct{font-size:12px;font-weight:700;color:var(--blue);font-family:var(--mono)}
+.prog-track{height:3px;background:var(--bg);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;background:var(--blue);border-radius:2px;width:0%;transition:width .4s ease}
+.prog-fetch{margin-top:7px;font-size:10px;color:var(--t3);font-family:var(--mono)}
+
+/* TABS */
+.tabs{display:flex;border-bottom:1px solid var(--border);gap:0}
+.tab{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--t3);padding:10px 18px;cursor:pointer;background:transparent;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.tab:hover{color:var(--t1)}
+.tab.on{color:var(--blue);border-bottom-color:var(--blue);font-weight:600}
+.tab-ct{background:var(--bg);border-radius:100px;padding:1px 7px;font-size:11px;font-weight:600;color:var(--t3)}
+.tab.on .tab-ct{background:var(--blue-bg);color:var(--blue)}
+
+/* TABLE */
+.tbl-wrap{background:var(--white);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.tbl-head{background:var(--bg);border-bottom:1px solid var(--border);padding:9px 20px;display:grid;gap:10px}
+.thl{grid-template-columns:32px 90px 150px 170px 150px 85px 75px 65px 185px 1fr}
+.thd{grid-template-columns:32px 150px 1fr 80px 100px}
+.th{font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.5px;text-transform:uppercase}
+.tbl-row{padding:12px 20px;display:grid;gap:10px;border-bottom:1px solid var(--border);align-items:center;transition:background .1s}
+.tbl-row:last-child{border:none}
+.tbl-row:hover{background:#fafbfd}
+.tc{font-size:13px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tc.bold{color:var(--t1);font-weight:500}
+.tc a{color:var(--blue);text-decoration:none;font-family:var(--mono);font-size:11px}
+.tc a:hover{text-decoration:underline}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px}
+.badge .dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+.badge-confirmed{background:var(--green-bg);color:var(--green)}
+.badge-high{background:var(--blue-bg);color:var(--blue)}
+.badge-dropped{background:var(--red-bg);color:var(--red)}
+.badge-processing{background:var(--orange-bg);color:var(--orange)}
+.badge-error{background:var(--red-bg);color:var(--red)}
+.badge-pending{background:var(--bg);color:var(--t3)}
+
+.step{display:inline-flex;align-items:center;font-size:9px;font-weight:700;padding:2px 4px;border-radius:3px;margin-left:4px;font-family:var(--mono)}
+.step.html{background:var(--green-bg);color:var(--green)}
+.step.search{background:var(--orange-bg);color:var(--orange)}
+
+.email{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--green);background:var(--green-bg);padding:2px 7px;border-radius:4px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.conf{font-family:var(--mono);font-size:10px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* EMPTY */
+.empty{padding:52px 20px;text-align:center}
+.empty-ico{width:40px;height:40px;background:var(--bg);border:1px solid var(--border);border-radius:10px;display:grid;place-items:center;margin:0 auto 10px;color:var(--t3)}
+.empty-txt{font-size:13px;color:var(--t3)}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--navy);color:#fff;border-radius:var(--r);padding:11px 18px;font-size:13px;transform:translateY(60px);opacity:0;transition:all .25s;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,0.2)}
+.toast.show{transform:translateY(0);opacity:1}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">
+    <div class="nav-logo">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    </div>
+    <span class="nav-name">LP Lead Enricher</span>
+    <div class="nav-sep"></div>
+    <span class="nav-sub" id="subtitle">Loading...</span>
+  </div>
+  <div class="nav-status">
+    <div class="status-dot"></div>
+    <span id="nav-model">Playwright · Local</span>
+  </div>
+</nav>
+
+<div class="main">
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">Total Cost</div>
+      <div class="stat-val g" id="cv-cost">$0.0000</div>
+      <div class="stat-note"><a href="https://console.anthropic.com/settings/billing" target="_blank">check balance ↗</a></div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">API Calls</div>
+      <div class="stat-val n" id="cv-calls">0 / 0</div>
+      <div class="stat-note">processed</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Valid Leads</div>
+      <div class="stat-val g" id="cv-leads">0</div>
+      <div class="stat-note">confirmed + high</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Dropped</div>
+      <div class="stat-val r" id="cv-dropped">0</div>
+      <div class="stat-note">do not contact</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Step Used</div>
+      <div class="stat-val o" id="cv-steps">0H / 0S</div>
+      <div class="stat-note">html / search</div>
+    </div>
+    <div class="stat" style="border:none">
+      <div class="stat-label">Remaining</div>
+      <div class="stat-val m" id="cv-remaining">0</div>
+      <div class="stat-note">domains left</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="toolbar-l">
+      <span class="mode-lbl">Mode</span>
+      <select id="run-mode" onchange="updateBtn()">
+        <option value="5">Test — 5 domains</option>
+        <option value="10">Test — 10 domains</option>
+        <option value="20" selected>Test — 20 domains</option>
+        <option value="50">Run — 50 domains</option>
+        <option value="1999">Run All</option>
+      </select>
+    </div>
+    <div class="toolbar-r">
+      <button class="btn btn-primary" id="btn-run" onclick="startRun()">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg>
+        <span id="btn-label">Run Test (20)</span>
+      </button>
+      <button class="btn btn-outline" id="btn-pause" onclick="pauseRun()" disabled>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        Pause
+      </button>
+      <button class="btn btn-outline" onclick="resetRun()">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.85"/></svg>
+        Reset
+      </button>
+      <button class="btn btn-green" id="btn-export-leads" onclick="openExport('leads')" disabled>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export Leads
+      </button>
+      <button class="btn btn-red" id="btn-export-dnc" onclick="openExport('dnc')" disabled>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export DNC
+      </button>
+    </div>
+  </div>
+
+  <div class="prog" id="prog">
+    <div class="prog-top">
+      <span class="prog-txt" id="prog-lbl">Starting...</span>
+      <span class="prog-pct" id="prog-pct">0%</span>
+    </div>
+    <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+    <div class="prog-fetch" id="prog-fetch"></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" onclick="switchTab('leads',this)">Valid Leads <span class="tab-ct" id="tc-leads">0</span></button>
+    <button class="tab" onclick="switchTab('dnc',this)">Do Not Contact <span class="tab-ct" id="tc-dnc">0</span></button>
+    <button class="tab" onclick="switchTab('all',this)">All Domains <span class="tab-ct" id="tc-all">0</span></button>
+  </div>
+
+  <div class="tbl-wrap" id="tbl-leads">
+    <div class="tbl-head thl">
+      <div class="th">#</div><div class="th">Status</div><div class="th">Domain</div>
+      <div class="th">Agent / Team</div><div class="th">Decision Maker</div>
+      <div class="th">Type</div><div class="th">City</div><div class="th">State</div>
+      <div class="th">Email</div><div class="th">Confidence</div>
+    </div>
+    <div id="tb-leads"><div class="empty"><div class="empty-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div><div class="empty-txt">No valid leads yet — run the enricher</div></div></div>
+  </div>
+
+  <div class="tbl-wrap" id="tbl-dnc" style="display:none">
+    <div class="tbl-head thd">
+      <div class="th">#</div><div class="th">Domain</div><div class="th">Drop Reason</div><div class="th">Step</div><div class="th">Date</div>
+    </div>
+    <div id="tb-dnc"><div class="empty"><div class="empty-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div><div class="empty-txt">No dropped domains yet</div></div></div>
+  </div>
+
+  <div class="tbl-wrap" id="tbl-all" style="display:none">
+    <div class="tbl-head thl">
+      <div class="th">#</div><div class="th">Status</div><div class="th">Domain</div>
+      <div class="th">Agent / Team</div><div class="th">Decision Maker</div>
+      <div class="th">Type</div><div class="th">City</div><div class="th">State</div>
+      <div class="th">Email</div><div class="th">Confidence</div>
+    </div>
+    <div id="tb-all"><div class="empty"><div class="empty-txt">No domains processed yet</div></div></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+
+
+// Fetch active domain list from server on load (respects START_INDEX in server config)
+async function initDomains(){
+  try {
+    const r = await fetch('http://localhost:3773/domains');
+    const data = await r.json();
+    if(data.domains && data.domains.length){
+      // Replace leads with server's domain list
+      leads = data.domains.map((d,i) => ({
+        row: data.start + i + 1, domain: d, status: 'pending',
+        agentName:'', decisionMaker:'', location:'', city:'', state:'', type:'',
+        email:'', emailConf:'', phone:'', icpNotes:'', shortConf:'Pending...',
+        stepUsed:'', dropReason:'', siteDown:false
+      }));
+      // Update subtitle
+      const startLabel = data.start > 0 ? ` · Starting from #${data.start+1}` : '';
+      document.getElementById('subtitle') && (document.getElementById('subtitle').textContent = 
+        `${data.remaining} domains remaining · Playwright · Local Chrome · Free${startLabel}`);
+      // Update run button and mode selector to reflect actual count
+      const runBtn = document.getElementById('btn-label');
+      if(runBtn && data.start > 0){
+        runBtn.textContent = `Run Remaining (${data.remaining})`;
+      }
+      // Update all count displays
+      document.getElementById('cv-remaining') && (document.getElementById('cv-remaining').textContent = data.remaining);
+      document.querySelector('.hbadge') && (document.querySelector('.hbadge').textContent = `${data.remaining} Domains · Playwright · Sonnet`);
+      // Update mode selector
+      const sel = document.getElementById('run-mode');
+      if(sel){
+        sel.innerHTML = `<option value="${data.remaining}" selected>Run All ${data.remaining}</option>`;
+      }
+      // Update button
+      const btn = document.getElementById('btn-label');
+      if(btn) btn.textContent = `Run All ${data.remaining}`;
+      meter();
+      renderAllTabs();
+    }
+  } catch(e) {
+    console.log('Server not running yet');
+  }
+}
+// NOTE: initDomains() is superseded by the load listener at the bottom of this
+// script (which preserves the test-mode options). Left defined but unwired.
+
+const DOMAINS = []; // loaded from server
+const TODAY = new Date().toISOString().split('T')[0];
+
+// Pricing — Haiku 4.5: $1.00/M input, $5.00/M output; web search $10/1k
+const PIN = 1.00/1e6, POUT = 5.00/1e6, PSEARCH = 10.00/1000;
+
+// CORS proxies to try in order
+const CORS_PROXIES = [
+  url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+];
+
+// allorigins returns the final URL after redirects in the response
+// Use this to detect when a domain has redirected to a different domain
+async function fetchWithRedirectFollow(url){
+  try{
+    // allorigins.win returns JSON with {contents, status, url} - url is the final URL after redirects
+    const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {
+      signal: AbortSignal.timeout(10000)
+    });
+    if(!res.ok) return null;
+    const data = await res.json();
+    if(!data || !data.contents) return null;
+    
+    const finalUrl = data.url || url;
+    const originalDomain = url.replace(/https?:\/\//,'').split('/')[0].replace(/^www\./, '');
+    const finalDomain = finalUrl.replace(/https?:\/\//,'').split('/')[0].replace(/^www\./, '');
+    
+    // If redirected to a completely different domain, fetch that domain's pages
+    if(finalDomain && finalDomain !== originalDomain && !finalDomain.includes(originalDomain) && !originalDomain.includes(finalDomain)){
+      console.log(`Redirect detected: ${originalDomain} → ${finalDomain}`);
+      // Fetch the actual destination homepage
+      const destRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://'+finalDomain)}`, {
+        signal: AbortSignal.timeout(10000)
+      });
+      if(destRes.ok){
+        const destData = await destRes.json();
+        if(destData && destData.contents && destData.contents.length > 200){
+          return { html: destData.contents, domain: finalDomain, redirected: true };
+        }
+      }
+    }
+    
+    if(data.contents.length > 200){
+      return { html: data.contents, domain: originalDomain, redirected: false };
+    }
+    return null;
+  } catch(e){ 
+    console.log('fetchWithRedirectFollow error:', e);
+    return null; 
+  }
+}
+
+let leads = []; // populated from server on load
+
+let running=false, paused=false;
+let totalIn=0, totalOut=0, totalCalls=0, totalSearches=0;
+let serverCostTotal = 0;  // accurate, model-aware cost from the server
+let activeExport = 'leads';
+
+// Prefer the server's model-aware cost; fall back to local estimate before any run.
+function cost(){ return serverCostTotal || (totalIn*PIN + totalOut*POUT + totalSearches*PSEARCH); }
+
+function updateBtn(){
+  const m = parseInt(document.getElementById('run-mode').value);
+  document.getElementById('btn-label').textContent = m==5 ? 'Run Test (5)' : m==10 ? 'Run Test (10)' : m==15 ? 'Run Test (15)' : m==50 ? 'Run 50' : 'Run All 547';
+}
+
+function getLimit(){ return parseInt(document.getElementById('run-mode').value); }
+
+function meter(){
+  const limit = getLimit();
+  const done = leads.slice(0,limit).filter(l=>['confirmed','high','dropped','error'].includes(l.status)).length;
+  document.getElementById('cv-cost').textContent = '$'+cost().toFixed(4);
+  document.getElementById('cv-calls').textContent = totalCalls+' / '+limit;
+  document.getElementById('cv-leads').textContent = leads.filter(l=>l.status==='confirmed'||l.status==='high').length;
+  document.getElementById('cv-dropped').textContent = leads.filter(l=>l.status==='dropped').length;
+  document.getElementById('cv-remaining').textContent = Math.max(0, limit - done);
+  // step breakdown
+  const html = leads.filter(l=>l.stepUsed==='html').length;
+  const hl = leads.filter(l=>l.stepUsed==='headless').length;
+  const ws = leads.filter(l=>l.stepUsed==='search').length;
+  document.getElementById('cv-steps').textContent = `${html}H/${hl}HL/${ws}S`;
+  // tab counts
+  document.getElementById('tab-leads-count').textContent = '('+leads.filter(l=>l.status==='confirmed'||l.status==='high').length+')';
+  document.getElementById('tab-dnc-count').textContent = '('+leads.filter(l=>l.status==='dropped').length+')';
+}
+
+function renderLeads(){
+  const valid = leads.filter(l=>l.status==='confirmed'||l.status==='high');
+  document.getElementById('rc-leads').innerHTML = valid.length
+    ? valid.map((l,i)=>leadRow(l,i)).join('')
+    : '<div style="padding:40px;text-align:center;color:var(--text3);font-family:var(--mono);font-size:11px">No valid leads yet — run the enricher</div>';
+}
+
+function renderDNC(){
+  const dropped = leads.filter(l=>l.status==='dropped');
+  document.getElementById('rc-dnc').innerHTML = dropped.length
+    ? dropped.map((l,i)=>dncRow(l,i)).join('')
+    : '<div style="padding:40px;text-align:center;color:var(--text3);font-family:var(--mono);font-size:11px">No dropped domains yet</div>';
+}
+
+function renderAll(){
+  const limit = getLimit();
+  document.getElementById('rc-all').innerHTML = leads.slice(0,limit).map((l,i)=>leadRow(l,i)).join('');
+  meter();
+}
+
+function renderAllTabs(){ renderLeads(); renderDNC(); renderAll(); meter(); }
+
+function leadRow(l,i){
+  const badge = getBadge(l.status);
+  const ecls = l.email==='DROP'?'cem drop':'cem';
+  const etxt = l.email==='DROP'?'DROPPED':(l.email||'—');
+  const step = l.stepUsed ? `<span class="step-indicator">${l.stepUsed.toUpperCase()}</span>` : '';
+  return `<div class="lr ${l.status}" id="row-${i}">
+    <div class="cell cn">${l.row}</div>
+    <div class="cell cd" title="${l.domain}">${l.domain}</div>
+    <div class="cell cname">${l.agentName||'—'}${step}${l.siteDown ? '<span style="margin-left:4px;background:rgba(244,63,94,0.12);color:var(--red);font-family:var(--mono);font-size:8px;padding:2px 5px;border-radius:3px;text-transform:uppercase;letter-spacing:0.5px">⚠ Site Down</span>' : ''}</div>
+    <div class="cell cdm">${l.decisionMaker||'—'}</div>
+    <div class="cell csm">${l.type||'—'}</div>
+    <div class="cell csm">${l.city||'—'}</div>
+    <div class="cell csm">${l.state||'—'}</div>
+    <div class="cell ${ecls}">${etxt}</div>
+    <div class="cell cconf">
+      <div style="color:var(--green);font-weight:500">${l.emailConf ? (l.emailConf.includes('CONFIRMED') ? 'CONFIRMED' : 'HIGH') : (l.shortConf||'—')}</div>
+      <div style="font-size:9px;color:var(--text3);margin-top:2px;line-height:1.3">${
+        l.emailConf ? l.emailConf.replace(/CONFIRMED — /i,'').replace(/HIGH — /i,'').replace(/HIGH CONFIDENCE — /i,'') : ''
+      }</div>
+    </div>
+    <div class="cell">${badge}</div>
+  </div>`;
+}
+
+function dncRow(l,i){
+  return `<div class="lr-drop">
+    <div class="cell cn">${l.row}</div>
+    <div class="cell cd-drop" title="${l.domain}">${l.domain}</div>
+    <div class="cell cname">${l.agentName||'—'}</div>
+    <div class="cell creason">${l.dropReason||l.icpNotes||'—'}</div>
+    <div class="cell csm">${l.date}</div>
+  </div>`;
+}
+
+// Row updates are handled by the renderUI() patch lower in this file.
+function upRow(i){}
+
+function getBadge(s){
+  const m={pending:['bp','Pending'],processing:['bpr','Fetching'],confirmed:['bc','Confirmed'],high:['bh','High Conf.'],dropped:['bd','Dropped'],error:['be','Error']};
+  const[c,l]=m[s]||m.pending;
+  return `<span class="badge ${c}"><span class="dot"></span>${l}</span>`;
+}
+
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach((t,i)=>{
+    t.classList.toggle('active', ['leads','dnc','all'][i]===name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+}
+
+// ─── STEP 1: Raw HTML fetch ───────────────────────────────────────────────
+async function fetchRawHTML(url){
+  // Use redirect-aware fetch as primary method
+  const result = await fetchWithRedirectFollow(url);
+  if(result) return result.html;
+  
+  // Fallback: direct fetch (works from localhost)
+  try{
+    const res = await fetch(url, {signal: AbortSignal.timeout(8000)});
+    if(res.ok){
+      const text = await res.text();
+      if(text && text.length > 200) return text;
+    }
+  } catch(e){}
+
+  // Last fallback: corsproxy.io
+  try{
+    const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, {signal: AbortSignal.timeout(8000)});
+    if(res.ok){
+      const text = await res.text();
+      if(text && text.length > 200) return text;
+    }
+  } catch(e){}
+  
+  return null;
+}
+
+async function handleRedirects(text, originalUrl){
+  // Detect meta refresh or canonical redirect to different domain
+  const metaRefresh = text.match(/<meta[^>]+http-equiv=["']refresh["'][^>]+content=["'][^"']*url=([^"'\s]+)/i);
+  const canonical = text.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i);
+  
+  let redirectUrl = null;
+  if(metaRefresh) redirectUrl = metaRefresh[1];
+  else if(canonical){
+    const canonicalUrl = canonical[1];
+    const origDomain = originalUrl.replace(/https?:\/\//,'').split('/')[0];
+    const canonDomain = canonicalUrl.replace(/https?:\/\//,'').split('/')[0];
+    if(canonDomain && canonDomain !== origDomain && canonDomain.includes('.')){
+      redirectUrl = 'https://'+canonDomain;
+    }
+  }
+
+  if(redirectUrl){
+    // Fetch the redirect destination
+    try{
+      const r2 = await fetch(redirectUrl, {signal: AbortSignal.timeout(8000)});
+      if(r2.ok){
+        const t2 = await r2.text();
+        if(t2 && t2.length > 200) return t2;
+      }
+    } catch(e){}
+    // Try via proxy
+    for(const proxy of CORS_PROXIES){
+      try{
+        const r2 = await fetch(proxy(redirectUrl), {signal: AbortSignal.timeout(8000)});
+        if(!r2.ok) continue;
+        const d2 = await r2.json().catch(()=>null);
+        const t2 = d2 ? (d2.contents||d2.body||'') : await r2.text();
+        if(t2 && t2.length > 200) return t2;
+      } catch(e){ continue; }
+    }
+  }
+  return text;
+}
+
+// ─── STEP 2: Headless browser fetch ──────────────────────────────────────
+async function fetchHeadless(url){
+  const key = document.getElementById('bl-key').value.trim();
+  if(!key){ console.warn('[BL] No key'); return null; }
+  try{
+    console.log('[BL] Fetching:', url);
+    const res = await fetch(
+      `https://chrome.browserless.io/content?token=${key}&url=${encodeURIComponent(url)}`,
+      {signal: AbortSignal.timeout(20000)}
+    );
+    if(!res.ok){
+      const errBody = await res.text().catch(()=>'');
+      console.error('[BL] HTTP', res.status, 'for', url, errBody.substring(0,150));
+      return null;
+    }
+    const text = await res.text();
+    console.log('[BL] Got', text.length, 'chars for', url);
+    return text.length > 200 ? text : null;
+  } catch(e){
+    console.error('[BL] Error for', url, ':', e.message);
+    return null;
+  }
+}
+
+// ─── Extract emails from HTML ─────────────────────────────────────────────
+
+function decodeCloudflareEmail(encodedString){
+  // Cloudflare email obfuscation decoder
+  let email = '', r = parseInt(encodedString.substr(0,2),16);
+  for(let n=2; n<encodedString.length; n+=2){
+    email += String.fromCharCode(parseInt(encodedString.substr(n,2),16)^r);
+  }
+  return email;
+}
+
+function decodeCloudflareEmails(html){
+  // Find all Cloudflare protected emails
+  // Pattern: data-cfemail="<hex>" or href="/cdn-cgi/l/email-protection#<hex>"
+  const decoded = html;
+  const cfEmails = [];
+  
+  const pattern1 = /data-cfemail="([0-9a-f]+)"/gi;
+  let m;
+  while((m=pattern1.exec(html))!==null){
+    try{ cfEmails.push(decodeCloudflareEmail(m[1])); } catch(e){}
+  }
+  
+  const pattern2 = /\/cdn-cgi\/l\/email-protection#([0-9a-f]+)/gi;
+  while((m=pattern2.exec(html))!==null){
+    try{ cfEmails.push(decodeCloudflareEmail(m[1])); } catch(e){}
+  }
+  
+  return cfEmails;
+}
+
+function extractEmails(html){
+  const found = new Set();
+  
+  // 0. Cloudflare protected emails (most common on LP sites)
+  const cfEmails = decodeCloudflareEmails(html);
+  cfEmails.forEach(e => { if(e && e.includes('@')) found.add(e.toLowerCase()); });
+
+  // 1. Standard email pattern
+  const std = html.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g);
+  if(std) std.forEach(e => found.add(e.toLowerCase()));
+
+  // 2. mailto: links
+  const mailto = html.match(/mailto:([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/gi);
+  if(mailto) mailto.forEach(m => found.add(m.replace(/mailto:/i,'').toLowerCase()));
+
+  // 3. HTML entity encoded — &#64; = @ and &#46; = .
+  const decoded = html.replace(/&#64;/g,'@').replace(/&#46;/g,'.').replace(/&#x40;/gi,'@').replace(/&#x2e;/gi,'.');
+  const ent = decoded.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g);
+  if(ent) ent.forEach(e => found.add(e.toLowerCase()));
+
+  // 4. Obfuscated [at] [dot] patterns
+  const obf = html.match(/[a-zA-Z0-9._%+\-]+\s*[\[\(]\s*at\s*[\]\)]\s*[a-zA-Z0-9.\-]+\s*[\[\(]\s*dot\s*[\]\)]\s*[a-zA-Z]{2,}/gi);
+  if(obf) obf.forEach(m => {
+    const c = m.replace(/\s*[\[\(]\s*at\s*[\]\)]\s*/gi,'@').replace(/\s*[\[\(]\s*dot\s*[\]\)]\s*/gi,'.').replace(/\s/g,'');
+    if(c.includes('@')) found.add(c.toLowerCase());
+  });
+
+  // 5. data-email attributes
+  const de = html.match(/data-email=["']([^"']+)["']/gi);
+  if(de) de.forEach(m => { const e=m.match(/["']([^"']+)["']/); if(e&&e[1].includes('@')) found.add(e[1].toLowerCase()); });
+
+  // 6. JSON-LD schema email
+  const jl = html.match(/"email"\s*:\s*"([^"]+)"/gi);
+  if(jl) jl.forEach(m => { const e=m.match(/"([^"]+@[^"]+)"/); if(e) found.add(e[1].toLowerCase()); });
+
+  // 7. JS variable email assignments  
+  const js = html.match(/(?:email|mail)\s*[=:]\s*["']([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})["']/gi);
+  if(js) js.forEach(m => { const e=m.match(/["']([^"']+@[^"']+)["']/); if(e) found.add(e[1].toLowerCase()); });
+
+  // Filter generics and platform emails
+  const generic = /^(info|hello|contact|admin|team|support|office|sales|mail|noreply|no-reply|donotreply|webmaster|privacy|legal|press|billing|help|service|feedback|unsubscribe|postmaster|abuse)@/i;
+  const platform = /@(luxurypresence|sentry|cloudflare|amazonaws|googleapis|facebook|twitter)\./ ;
+  
+  return [...found].filter(e => !generic.test(e) && !platform.test(e) && e.includes('@') && e.includes('.'));
+}
+
+// Recursively find email values in a JSON object
+function findEmailsInObject(obj){
+  const emails = [];
+  if(!obj || typeof obj !== 'object') return emails;
+  for(const [key, val] of Object.entries(obj)){
+    if(typeof val === 'string' && val.includes('@') && key.toLowerCase().includes('email')){
+      emails.push(val.trim());
+    } else if(typeof val === 'object'){
+      emails.push(...findEmailsInObject(val));
+    } else if(Array.isArray(val)){
+      val.forEach(item => emails.push(...findEmailsInObject(item)));
+    }
+  }
+  return emails;
+}
+
+// ─── Extract nav links from HTML ──────────────────────────────────────────
+function extractNavLinks(html, domain){
+  const links = [];
+  const hrefRegex = /href=["']([^"']*?)["']/gi;
+  const navKeywords = /contact|about|team|meet|connect|agent|founder|owner|staff|people|us$/i;
+  let match;
+  while((match=hrefRegex.exec(html))!==null){
+    let href = match[1];
+    if(!href || href.startsWith('#') || href.startsWith('mailto') || href.startsWith('tel')) continue;
+    if(!href.startsWith('http')) href = 'https://'+domain+'/'+href.replace(/^\/+/,'');
+    if(href.includes(domain) && navKeywords.test(href)) links.push(href);
+  }
+  return [...new Set(links)].slice(0,4);
+}
+
+// ─── Check if HTML looks JS-rendered (empty shell) ───────────────────────
+function isJSShell(html){
+  if(!html) return true;
+  const stripped = html.replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim();
+  return stripped.length < 300;
+}
+
+// ─── STEP 3: Ask Claude with web search ──────────────────────────────────
+async function askClaude(domain, htmlContext, useSearch, actualDomain){
+  const key = document.getElementById('api-key').value.trim();
+  const systemPrompt = `Real estate lead researcher. Extract the owner/decision maker's contact email from the content provided.
+
+TEAM SIZE: Drop immediately if 5+ agents, franchise network, or large brokerage.
+
+FINDING THE OWNER EMAIL:
+- Single email on the page that looks like a person = owner email, CONFIRMED
+- Email in footer = owner email
+- Email shown NEXT TO a specific named person on their profile/bio page = that person's email, even if prefix looks generic (e.g. broker@side.com shown next to "Sakina Ismaelbay" IS her email)
+- Email matching the domain name or owner name = CONFIRMED
+- NEVER guess or construct an email — only use emails actually present in the content
+- NEVER output: info@, hello@, contact@, admin@, team@, support@, office@, sales@
+
+CRITICAL — COPY EMAILS EXACTLY:
+If you find an email in the content, copy it CHARACTER FOR CHARACTER exactly as it appears.
+derek.buse@domain.com must be returned as derek.buse@domain.com — NOT derek@domain.com
+first.last@domain.com must be returned as first.last@domain.com — NOT firstname@domain.com
+Do NOT simplify, shorten, or modify the email in any way. Copy it exactly.
+
+If no email found in the content provided: drop:true, dropReason:"No email found — manual review"
+
+Return ONLY JSON, no prose:
+{"agentName":"","decisionMaker":"First Last","location":"City ST","type":"Solo Agent|Solo Founder|Small Team","email":"","emailConfidence":"CONFIRMED — [source] | HIGH CONFIDENCE — [reason]","phone":"","icpNotes":"1-2 sentences","dropReason":"","drop":false}`;
+
+  const realDomain = actualDomain || domain;
+  const redirectNote = (actualDomain && actualDomain !== domain) ? `NOTE: ${domain} redirects to ${actualDomain} — use ${actualDomain} for the email address domain.\n\n` : '';
+  const userMsg = htmlContext
+    ? `Domain: ${domain}${redirectNote ? ' (redirects to '+actualDomain+')' : ''}\n\n${redirectNote}Here is the actual HTML content fetched from this website. Extract the owner email from this content only — do NOT search the web, the answer is in the HTML below:\n\n${htmlContext.substring(0,3000)}`
+    : `Find the owner/founder personal email for real estate website: ${domain}. Search for "${realDomain} owner founder email contact about page". Return JSON.`;
+
+  const body = {
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 400,
+    system: systemPrompt,
+    messages: [{role:'user', content: userMsg}]
+  };
+
+  // ONLY enable web search if we have zero HTML context
+  // Never give Claude web search when we already have page content
+  // — it will use it and cost money even when not needed
+  if(useSearch && !htmlContext){
+    body.tools = [{type:'web_search_20250305', name:'web_search'}];
+  }
+
+  const res = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body: JSON.stringify(body)
+  });
+
+  if(!res.ok){
+    const e = await res.json().catch(()=>({}));
+    console.error('[API] Error:', res.status, e.error?.message);
+    throw new Error(e.error?.message||`HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  totalIn  += data.usage?.input_tokens  || 0;
+  totalOut += data.usage?.output_tokens || 0;
+  totalCalls++;
+  totalSearches += (data.content||[]).filter(b=>b.type==='tool_use'&&b.name==='web_search').length;
+
+  const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+  let p;
+  try{ p = JSON.parse(text.replace(/```json|```/g,'').trim()); }
+  catch{
+    const m = text.match(/\{[\s\S]*\}/);
+    if(m) try{ p = JSON.parse(m[0]); } catch{ throw new Error('Bad JSON'); }
+    else throw new Error('No JSON');
+  }
+  return p;
+}
+
+// ─── MAIN ENRICH FUNCTION ─────────────────────────────────────────────────
+async function enrichLead(i, attempt=1){
+  const domain = leads[i].domain;
+  leads[i].status = 'processing';
+  leads[i].shortConf = 'Fetching...';
+  upRow(i);
+
+  if(attempt > 1) await new Promise(r=>setTimeout(r, attempt*2000));
+
+  try {
+    const res = await fetch('http://localhost:3773/enrich', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({domain})
+    });
+
+    if(!res.ok){
+      if(attempt < 3) return enrichLead(i, attempt+1);
+      throw new Error('Server error ' + res.status);
+    }
+
+    const p = await res.json();
+
+    leads[i].agentName     = p.agentName       || '';
+    leads[i].decisionMaker = p.decisionMaker   || '';
+    leads[i].location      = p.location        || '';
+    // Split location into city/state for separate columns
+    const locParts = (p.location||'').trim().split(/,\s*|\s+(?=[A-Z]{2}$)/);
+    leads[i].city  = locParts.length >= 2 ? locParts.slice(0,-1).join(' ').trim() : (p.location||'');
+    leads[i].state = locParts.length >= 2 ? locParts[locParts.length-1].trim() : '';
+    leads[i].type          = p.type            || '';
+    leads[i].email         = p.email           || '';
+    leads[i].emailConf     = p.emailConfidence || '';
+    leads[i].phone         = p.phone           || '';
+    leads[i].icpNotes      = p.icpNotes        || '';
+    leads[i].dropReason    = p.dropReason      || '';
+    leads[i].stepUsed      = p.step            || 'html';
+    leads[i].siteDown      = p.siteDown        || false;
+    leads[i].date          = p.date            || TODAY;
+    leads[i].emailStatus   = p.emailStatus     || '';
+    leads[i].emailStatusDetail = p.emailStatusDetail || '';
+    // Track cost from server
+    totalIn  += p._tokensIn  || 0;
+    totalOut += p._tokensOut || 0;
+    totalCalls++;
+    totalSearches += p._searches || 0;
+    if(typeof p._costTotal === 'number') serverCostTotal = p._costTotal;  // accurate cost
+
+    if(p.drop || !p.email){
+      leads[i].status    = 'dropped';
+      leads[i].shortConf = p.dropReason || 'No email found';
+    } else if((p.emailConfidence||'').toUpperCase().includes('CONFIRMED')){
+      leads[i].status    = 'confirmed';
+      leads[i].shortConf = 'CONFIRMED — ' + p.email;
+    } else {
+      leads[i].status    = 'high';
+      leads[i].shortConf = 'HIGH — ' + p.email;
+    }
+
+  } catch(err){
+    leads[i].status    = 'error';
+    leads[i].shortConf = err.message.includes('fetch') ? '⚠ Server not running' : err.message.substring(0,55);
+  }
+
+  upRow(i);
+}
+
+async function startRun(){
+  // Keys handled by local server. Progress UI is driven by renderUI(),
+  // which fires after every enrichLead() via the upRow patch below.
+  const limit = getLimit();
+  running=true; paused=false;
+  document.getElementById('btn-run').disabled=true;
+  document.getElementById('btn-pause').disabled=false;
+  document.getElementById('btn-export-leads').disabled=false;
+  document.getElementById('btn-export-dnc').disabled=false;
+
+  const BATCH = 3;
+  let idx = 0;
+  while(idx < limit){
+    if(!running||paused) break;
+
+    // Collect next batch of pending/error leads
+    const batch = [];
+    let j = idx;
+    while(batch.length < BATCH && j < limit){
+      if(['pending','error'].includes(leads[j].status)) batch.push(j);
+      j++;
+    }
+    idx = j;
+    if(batch.length === 0) break;
+
+    // Run batch in parallel — HTML fetching staggers the Claude calls naturally
+    await Promise.all(batch.map(i => enrichLead(i)));
+
+    // Small pause between batches
+    if(running && !paused) await new Promise(r=>setTimeout(r,500));
+  }
+
+  const slice = leads.slice(0,limit);
+  // Retry any errors once before declaring done
+  for(let ei=0; ei<limit; ei++){
+    if(leads[ei].status === 'error'){
+      await enrichLead(ei, 1);
+      await new Promise(r=>setTimeout(r,1000));
+    }
+  }
+  const allDone = slice.every(l=>!['pending','processing'].includes(l.status));
+  renderUI();
+  if(allDone&&!paused){
+    document.getElementById('btn-pause').disabled=true;
+    const valid=slice.filter(l=>l.status==='confirmed'||l.status==='high').length;
+    const dropped=slice.filter(l=>l.status==='dropped').length;
+    running=false;
+    showToast(`✓ Done — ${valid} leads, ${dropped} dropped, $${cost().toFixed(4)}`);
+  } else if(paused){
+    document.getElementById('btn-run').disabled=false;
+    running=false;
+  }
+}
+
+function pauseRun(){ paused=true; document.getElementById('btn-pause').disabled=true; }
+
+function resetRun(){
+  running=false; paused=false; totalIn=0; totalOut=0; totalCalls=0; totalSearches=0;
+  // Reset statuses on the loaded domain list — do NOT rebuild from the empty
+  // DOMAINS array, which would wipe the table.
+  leads.forEach(l=>{
+    l.status='pending'; l.agentName=''; l.decisionMaker=''; l.location='';
+    l.type=''; l.email=''; l.emailConf=''; l.emailConfidence=''; l.phone='';
+    l.icpNotes=''; l.shortConf=''; l.stepUsed=''; l.dropReason='';
+    l.city=''; l.state=''; l.siteDown=false;
+  });
+  document.getElementById('btn-run').disabled=false;
+  document.getElementById('btn-pause').disabled=true;
+  document.getElementById('btn-export-leads').disabled=true;
+  document.getElementById('btn-export-dnc').disabled=true;
+  document.getElementById('prog').classList.remove('on');
+  renderUI(); showToast('Reset');
+}
+
+// ─── EXPORT ───────────────────────────────────────────────────────────────
+function openExport(type){
+  activeExport = type;
+  const limit = getLimit();
+  const slice = leads.slice(0, limit);
+  if(type==='leads'){
+    const confirmed=slice.filter(l=>l.status==='confirmed').length;
+    const high=slice.filter(l=>l.status==='high').length;
+    document.getElementById('modal-title').textContent='Export Valid Leads';
+    document.getElementById('modal-desc').textContent='All leads with personal owner emails. Ready for cold email.';
+    document.getElementById('modal-stats').innerHTML=`
+      <div class="ms"><div class="msv g">${confirmed}</div><div class="msl">Confirmed</div></div>
+      <div class="ms"><div class="msv y">${high}</div><div class="msl">High Conf</div></div>
+      <div class="ms"><div class="msv b">$${cost().toFixed(4)}</div><div class="msl">Cost</div></div>`;
+  } else {
+    const dropped=slice.filter(l=>l.status==='dropped').length;
+    document.getElementById('modal-title').textContent='Export Do Not Contact List';
+    document.getElementById('modal-desc').textContent='All dropped domains with reasons. Import to your CRM as suppression list.';
+    document.getElementById('modal-stats').innerHTML=`
+      <div class="ms"><div class="msv r">${dropped}</div><div class="msl">Dropped</div></div>
+      <div class="ms"><div class="msv b">$${cost().toFixed(4)}</div><div class="msl">Cost</div></div>`;
+  }
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+
+function downloadActive(){
+  const limit = getLimit();
+  const slice = leads.slice(0, limit);
+  let csv, filename;
+  if(activeExport==='leads'){
+    const valid = slice.filter(l=>l.status==='confirmed'||l.status==='high');
+    const hdr = ['Row','Agent/Team Name','Decision Maker','Website','City','State','Type','Email','Email Status','Email Detail','Email Confidence','Phone','Source','ICP Fit Notes','Site Status'];
+    const rows = valid.map(l=>[
+      l.row,
+      `"${(l.agentName||'').replace(/"/g,'""')}"`,
+      `"${(l.decisionMaker||'').replace(/"/g,'""')}"`,
+      `"https://${l.domain}"`,
+      `"${(l.city||'').replace(/"/g,'""')}"`,
+      `"${(l.state||'').replace(/"/g,'""')}"`,
+      `"${(l.type||'').replace(/"/g,'""')}"`,
+      `"${(l.email||'').replace(/"/g,'""')}"`,
+      `"${(l.emailStatus||'').replace(/"/g,'""')}"`,
+      `"${(l.emailStatusDetail||'').replace(/"/g,'""')}"`,
+      `"${(l.emailConf||l.emailConfidence||'').replace(/"/g,'""')}"`,
+      `"${(l.phone||'').replace(/"/g,'""')}"`,
+      `"LP Enricher"`,
+      `"${(l.icpNotes||'').replace(/"/g,'""')}"`,
+      `"${l.siteDown ? 'SITE DOWN — email from web search' : 'Site OK'}"`
+    ].join(','));
+    csv = [hdr.join(','),...rows].join('\n');
+    filename = `LP_leads_${limit}_enriched.csv`;
+  } else {
+    const dropped = slice.filter(l=>l.status==='dropped');
+    const hdr = ['Domain','Agent/Team Name','Drop Reason','Date Processed'];
+    const rows = dropped.map(l=>[
+      `"${l.domain}"`,
+      `"${(l.agentName||'').replace(/"/g,'""')}"`,
+      `"${(l.dropReason||l.icpNotes||'No personal email / team too large').replace(/"/g,'""')}"`,
+      `"${l.date}"`
+    ].join(','));
+    csv = [hdr.join(','),...rows].join('\n');
+    filename = `LP_do_not_contact_${limit}.csv`;
+  }
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=filename; a.click();
+  URL.revokeObjectURL(url); closeModal(); showToast('✓ Downloaded');
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// API keys are handled entirely by the local server (enricher_server.py).
+// The old api-key / bl-key inputs no longer exist in this UI; touching them
+// here threw a TypeError that halted the rest of the script.
+
+
+// ── UI patches ──
+
+function updateBtn(){
+  const m = parseInt(document.getElementById('run-mode').value);
+  const labels = {5:'Run Test (5)',10:'Run Test (10)',20:'Run Test (20)',50:'Run 50'};
+  document.getElementById('btn-label').textContent = labels[m] || 'Run All ' + m;
+}
+
+function switchTab(tab, btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('tbl-leads').style.display = tab==='leads'?'':'none';
+  document.getElementById('tbl-dnc').style.display = tab==='dnc'?'':'none';
+  document.getElementById('tbl-all').style.display = tab==='all'?'':'none';
+}
+
+function statusTag(l){
+  if(!l.emailStatus) return '';
+  const s = l.emailStatus.toLowerCase();
+  const color = s==='valid' ? '#059669' : (s==='invalid' ? '#dc2626' : '#d97706');
+  const title = l.emailStatusDetail ? ' ('+l.emailStatusDetail+')' : '';
+  return '<span title="'+(l.emailStatus+title)+'" style="margin-left:6px;font-size:9px;font-weight:700;letter-spacing:.4px;color:'+color+'">'+l.emailStatus.toUpperCase()+'</span>';
+}
+
+function renderUI(){
+  const confirmed = leads.filter(x=>x.status==='confirmed').length;
+  const high = leads.filter(x=>x.status==='high').length;
+  const dropped = leads.filter(x=>x.status==='dropped').length;
+  const htmlS = leads.filter(x=>x.stepUsed==='html').length;
+  const searchS = leads.filter(x=>x.stepUsed==='search').length;
+  const done = leads.filter(x=>['confirmed','high','dropped','error'].includes(x.status)).length;
+
+  document.getElementById('cv-leads').textContent = confirmed+high;
+  document.getElementById('cv-dropped').textContent = dropped;
+  document.getElementById('cv-steps').textContent = htmlS+'H / '+searchS+'S';
+  document.getElementById('cv-calls').textContent = done+' / '+leads.length;
+  document.getElementById('cv-remaining').textContent = Math.max(0,leads.length-done);
+  
+  const cost = serverCostTotal || ((totalIn/1e6*1.00)+(totalOut/1e6*5.00));
+  document.getElementById('cv-cost').textContent = '$'+cost.toFixed(4);
+  
+  const pct = leads.length ? Math.round(done/leads.length*100) : 0;
+  document.getElementById('prog-fill').style.width = pct+'%';
+  document.getElementById('prog-pct').textContent = pct+'%';
+  document.getElementById('prog-lbl').textContent = done+' of '+leads.length+' done — $'+cost.toFixed(4);
+  
+  document.getElementById('tc-leads').textContent = confirmed+high;
+  document.getElementById('tc-dnc').textContent = dropped;
+  document.getElementById('tc-all').textContent = leads.length;
+
+  // Valid leads table
+  const validLeads = leads.filter(l=>['confirmed','high'].includes(l.status));
+  document.getElementById('tb-leads').innerHTML = validLeads.length ? validLeads.map((l,i)=>{
+    const step = l.stepUsed==='html'?'<span class="step html">HTML</span>':l.stepUsed==='search'?'<span class="step search">SRCH</span>':'';
+    const conf = (l.emailConf||'').replace(/CONFIRMED\s*[—–-]\s*/i,'').slice(0,28);
+    return '<div class="tbl-row thl">'+
+      '<div class="tc">'+(i+1)+'</div>'+
+      '<div class="tc"><span class="badge badge-'+l.status+'"><span class="dot"></span>'+l.status+'</span></div>'+
+      '<div class="tc"><a href="https://'+l.domain+'" target="_blank">'+l.domain+'</a></div>'+
+      '<div class="tc bold">'+(l.agentName||'—')+step+'</div>'+
+      '<div class="tc">'+(l.decisionMaker||'—')+'</div>'+
+      '<div class="tc">'+(l.type||'—')+'</div>'+
+      '<div class="tc">'+(l.city||'—')+'</div>'+
+      '<div class="tc">'+(l.state||'—')+'</div>'+
+      '<div class="tc"><span class="email">'+(l.email||'—')+'</span>'+statusTag(l)+'</div>'+
+      '<div class="tc conf">'+conf+'</div>'+
+      '</div>';
+  }).join('') : '<div class="empty"><div class="empty-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div><div class="empty-txt">No valid leads yet</div></div>';
+
+  // DNC table
+  const dncLeads = leads.filter(l=>l.status==='dropped');
+  document.getElementById('tb-dnc').innerHTML = dncLeads.length ? dncLeads.map((l,i)=>
+    '<div class="tbl-row thd">'+
+    '<div class="tc">'+(i+1)+'</div>'+
+    '<div class="tc"><a href="https://'+l.domain+'" target="_blank">'+l.domain+'</a></div>'+
+    '<div class="tc" style="color:var(--red);font-size:12px">'+(l.dropReason||'—')+'</div>'+
+    '<div class="tc" style="font-family:var(--mono);font-size:11px">'+(l.stepUsed||'—')+'</div>'+
+    '<div class="tc" style="font-family:var(--mono);font-size:11px;color:var(--t3)">'+(l.date||'—')+'</div>'+
+    '</div>'
+  ).join('') : '<div class="empty"><div class="empty-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div><div class="empty-txt">No dropped domains yet</div></div>';
+
+  // All table
+  const allVis = leads.filter(l=>l.status!=='pending');
+  document.getElementById('tb-all').innerHTML = allVis.length ? allVis.map((l,i)=>{
+    const step = l.stepUsed==='html'?'<span class="step html">HTML</span>':l.stepUsed==='search'?'<span class="step search">SRCH</span>':'';
+    return '<div class="tbl-row thl">'+
+      '<div class="tc">'+(i+1)+'</div>'+
+      '<div class="tc"><span class="badge badge-'+l.status+'"><span class="dot"></span>'+l.status+'</span></div>'+
+      '<div class="tc"><a href="https://'+l.domain+'" target="_blank">'+l.domain+'</a></div>'+
+      '<div class="tc bold">'+(l.agentName||'—')+step+'</div>'+
+      '<div class="tc">'+(l.decisionMaker||'—')+'</div>'+
+      '<div class="tc">'+(l.type||'—')+'</div>'+
+      '<div class="tc">'+(l.city||'—')+'</div>'+
+      '<div class="tc">'+(l.state||'—')+'</div>'+
+      '<div class="tc"><span class="email">'+(l.email||'—')+'</span>'+statusTag(l)+'</div>'+
+      '<div class="tc conf">'+(l.emailConf||'').slice(0,28)+'</div>'+
+      '</div>';
+  }).join('') : '<div class="empty"><div class="empty-txt">No domains processed yet</div></div>';
+}
+
+// Patch upRow to call our render
+const _upRow = upRow;
+upRow = function(i){ _upRow && _upRow(i); renderUI(); };
+
+// Fetching label
+setInterval(()=>{
+  const f = leads.filter(l=>l.status==='processing').map(l=>l.domain);
+  if(f.length) document.getElementById('prog-fetch').textContent='Fetching: '+f.join(', ');
+},500);
+
+// Show progress on run
+const _startRun = startRun;
+startRun = async function(){
+  document.getElementById('prog').classList.add('on');
+  document.getElementById('btn-export-leads').disabled = false;
+  document.getElementById('btn-export-dnc').disabled = false;
+  await _startRun();
+};
+
+// Load domains from server
+window.addEventListener('load', async()=>{
+  try{
+    const r = await fetch('http://localhost:3773/domains');
+    const data = await r.json();
+    if(data.domains && data.domains.length){
+      leads = data.domains.map((d,i)=>({
+        row:(data.start||0)+i+1, domain:d, status:'pending',
+        agentName:'', decisionMaker:'', location:'', type:'',
+        email:'', emailConf:'', phone:'', icpNotes:'', shortConf:'Pending...',
+        stepUsed:'', dropReason:'', siteDown:false, city:'', state:''
+      }));
+      const s = data.start>0?' · from #'+(data.start+1):'';
+      document.getElementById('subtitle').textContent = data.remaining+' domains'+s;
+      document.getElementById('cv-remaining').textContent = data.remaining;
+      document.getElementById('tc-all').textContent = data.remaining;
+      const full = document.querySelector('#run-mode option[value="1999"]');
+      if(full){ full.value=data.remaining; full.textContent='Run All '+data.remaining; }
+      // Show the actual model the server is running
+      const MODEL_LABELS = {'claude-haiku-4-5':'Haiku 4.5','claude-sonnet-4-6':'Sonnet 4.6','claude-opus-4-8':'Opus 4.8'};
+      const nm = document.getElementById('nav-model');
+      if(nm) nm.textContent = 'Playwright · ' + (MODEL_LABELS[data.model] || data.model || '?') + ' · Local';
+      updateBtn();
+    }
+  } catch(e){
+    document.getElementById('subtitle').textContent='Server offline — start in Terminal';
+  }
+});
+</script>
+</body>
+</html>

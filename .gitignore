@@ -1,0 +1,14 @@
+# Secrets — never commit
+*.env
+.env
+key.txt
+*secret*
+.secrets/
+
+# macOS / Python noise
+.DS_Store
+__pycache__/
+*.pyc
+
+# Local timestamped backups (git history replaces these)
+backups/
