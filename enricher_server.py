@@ -868,18 +868,15 @@ async def enrich_domain_async(domain):
             result['status'] = 'high'
             print(f"  [{domain}] HIGH: {p.get('email')} | cost so far: ${cost():.4f}")
 
-        # Verify deliverability with MailTester Ninja (offloaded so it doesn't block other domains).
-        # An 'Invalid' (undeliverable) email is auto-cleaned out of Valid Leads into DNC.
+        # MailTester only TAGS the email (Valid/Invalid/Unverifiable). It does NOT change the LP
+        # accept/deny verdict — those are two separate stages. Deliverability sorting (Clean /
+        # Unresolved / DNC) happens at EXPORT time, never here. This keeps the LP Enricher's own
+        # accepted/not-accepted decision clean and independent of MailTester.
         if result['email'] and result['status'] in ('confirmed', 'high'):
             label, detail = await loop.run_in_executor(None, verify_email, result['email'])
             result['emailStatus'] = label
             result['emailStatusDetail'] = detail
-            if label == 'Invalid':
-                result['status'] = 'dropped'
-                result['dropReason'] = f"Email failed verification — undeliverable ({detail})"
-                print(f"  [{domain}] mailtester INVALID -> moved to DNC: {result['email']} ({detail})")
-            else:
-                print(f"  [{domain}] mailtester: {label} ({detail})")
+            print(f"  [{domain}] mailtester tag: {label} ({detail})")
 
     except Exception as e:
         result['status'] = 'error'
