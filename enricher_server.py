@@ -13,6 +13,7 @@ import sys
 import ssl
 import urllib.request
 import urllib.parse
+import socket
 import threading
 import subprocess
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -482,6 +483,17 @@ async def enrich_domain_async(domain):
         "city":"","state":"","emailStatus":"","emailStatusDetail":""
     }
 
+    # DNS pre-check: if the domain doesn't resolve it's dead — drop it instantly and skip the
+    # browser AND the expensive web-search step. We never guess an email for a dead site.
+    loop = asyncio.get_event_loop()
+    try:
+        await loop.run_in_executor(None, socket.gethostbyname, domain)
+    except Exception:
+        result.update(status='dropped', step='dns', siteDown=True,
+                      dropReason='Site offline (domain does not resolve)')
+        print(f"  [{domain}] DEAD (no DNS) — dropped, skipped browser + web search")
+        return result
+
     context = await _browser.new_context(
         user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         viewport={"width": 1920, "height": 1080},
@@ -726,13 +738,18 @@ async def enrich_domain_async(domain):
             result['status'] = 'high'
             print(f"  [{domain}] HIGH: {p.get('email')} | cost so far: ${cost():.4f}")
 
-        # Verify deliverability with MailTester Ninja (offloaded so it doesn't block other domains)
+        # Verify deliverability with MailTester Ninja (offloaded so it doesn't block other domains).
+        # An 'Invalid' (undeliverable) email is auto-cleaned out of Valid Leads into DNC.
         if result['email'] and result['status'] in ('confirmed', 'high'):
-            loop = asyncio.get_event_loop()
             label, detail = await loop.run_in_executor(None, verify_email, result['email'])
             result['emailStatus'] = label
             result['emailStatusDetail'] = detail
-            print(f"  [{domain}] mailtester: {label} ({detail})")
+            if label == 'Invalid':
+                result['status'] = 'dropped'
+                result['dropReason'] = f"Email failed verification — undeliverable ({detail})"
+                print(f"  [{domain}] mailtester INVALID -> moved to DNC: {result['email']} ({detail})")
+            else:
+                print(f"  [{domain}] mailtester: {label} ({detail})")
 
     except Exception as e:
         result['status'] = 'error'
