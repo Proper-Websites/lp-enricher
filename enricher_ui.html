@@ -1091,6 +1091,9 @@ setInterval(()=>{
 // Show progress on run
 const _startRun = startRun;
 startRun = async function(){
+  // Zero the server + client cost meter so each run measures ONLY itself (no leftover test calls)
+  try { await fetch('http://localhost:3773/reset', {method:'POST'}); } catch(e){}
+  serverCostTotal = 0; totalIn = 0; totalOut = 0; totalCalls = 0; totalSearches = 0;
   document.getElementById('prog').classList.add('on');
   document.getElementById('btn-export-leads').disabled = false;
   document.getElementById('btn-export-dnc').disabled = false;

@@ -54,6 +54,7 @@ PRICING = {  # (input $/M tokens, output $/M tokens)
     "claude-opus-4-8":   (5.0, 25.0),
 }
 PRICE_SEARCH = 10.0 / 1000  # web search: $10 per 1,000 searches
+DROP_TEAM = 15  # only drop as "too large" at this many agents — smaller teams keep + pick the owner
 
 MAILTESTER_KEY = _load_secret('MAILTESTER_KEY')  # optional; email verification skipped if absent
 
@@ -178,12 +179,18 @@ def email_matches_person(email, html):
     local_clean = re.sub(r'[._\-]', '', local)
     text = re.sub(r'<[^>]+>', ' ', html)
     tokens = set()
+    names = set()  # real name parts (len>=4) for substring matching, e.g. 'kyzer' in 'amkyzer'
     for first, last in re.findall(r'\b([A-Z][a-z]{2,})\s+([A-Z][a-z]{2,})\b', text):
         if first.lower() in NON_NAME_WORDS or last.lower() in NON_NAME_WORDS:
             continue
         f, l = first.lower(), last.lower()
-        tokens.update({f, l, f+l, l+f, f[0]+l, f+l[0]})  # john / smith / johnsmith / jsmith ...
-    return local in tokens or local_clean in tokens
+        tokens.update({f, l, f+l, l+f, f[0]+l, f+l[0], f[0]+l[0]+l, f+l[0], l+f[0]})
+        if len(f) >= 4: names.add(f)
+        if len(l) >= 4: names.add(l)
+    if local in tokens or local_clean in tokens:
+        return True
+    # initials + last name (amkyzer = A.M. Kyzer): a name part is a substring of the prefix
+    return any(n in local_clean for n in names)
 
 def has_personal_email(emails, html):
     return any(email_matches_person(e, html) for e in emails)
@@ -199,6 +206,14 @@ def is_single_listing(html):
     if re.search(r'(for sale|just listed|offered at|schedule a (tour|showing)|listing courtesy|presented by)', t): s += 1
     if re.search(r'(virtual tour|property details|floor ?plan|mls\s*#|listing agent|this (home|property))', t): s += 1
     return s >= 3
+
+def site_namesake(html, domain):
+    """Best guess at the site's person/brand name (for labeling homepage emails)."""
+    m = re.search(r'<title[^>]*>([^<]{1,80})</title>', html or '', re.I)
+    t = re.split(r'[|\-–—:•]', (m.group(1) if m else '').strip())[0].strip()
+    if t and 2 < len(t) < 40 and re.search(r'[A-Za-z]', t) and not re.search(r'home|welcome|real estate|realtor|^.{0,3}agent|broker|homes? for sale', t, re.I):
+        return t
+    return domain.split('.')[0]
 
 def is_js_shell(html):
     if not html: return True
@@ -267,10 +282,19 @@ WHICH EMAIL TO USE FOR THAT PERSON:
   named person's personal email from that page.
 - ONLY use emails LITERALLY present in the content. Never invent one.
 
-THE NAME AND THE EMAIL MUST BE THE SAME PERSON — this is critical:
+THE NAME AND THE EMAIL MUST BE THE SAME PERSON (for individual leads):
 - decisionMaker MUST be the actual owner of the email you return.
 - If the only usable email belongs to Hilary, then decisionMaker is Hilary — do NOT return
   Darlene's name with Hilary's email. Never pair one person's name with another's email.
+
+TEAM FALLBACK — do NOT drop a real team just because you can't name the individual owner:
+- Priority: (1) the owner's personal email, (2) a named agent's personal email, (3) the team's
+  domain-matched main email attributed to the TEAM/BRAND name.
+- If a real team/brokerage has a main contact email that matches its domain (e.g.
+  ds@smithrealtycollective.com for "Smith Realty Collective"; or the only email is info@/contact@/
+  a shared inbox), KEEP it: set decisionMaker to the TEAM/BRAND name (read it from the page, e.g.
+  "Smith Realty Collective"), use that email, emailConfidence "HIGH - team contact email".
+- Only drop if there is NO usable email at all, or it is address-only / a very-large-franchise (DROP note).
 
 TWO-NAME TEAM EMAILS (jasonlaura@, johnandjane@):
 - These belong to a named 2-person team. If it is a genuine SMALL team, keep it and set decisionMaker
@@ -286,10 +310,11 @@ DECISION MAKER NAME — DO NOT LEAVE BLANK if a person is named anywhere on the 
 TEAM SIZE & WHEN TO DROP:
 - A "TEAM SIZE" and/or "ADDRESS-ONLY SITE" note may appear below — trust it; it is based on the
   actual number of individual agent profile pages found on the site.
-- Drop if 6+ agents (note says LARGE team) → dropReason "Team too large (6+ agents)".
-- Drop address-only single-listing microsites with no clear solo owner → dropReason "Address-only site / team too large".
-- Keep 1-5 agents — pick the owner/lead per the rules above; use a CANDIDATE email if one is listed.
-- "Group"/"Team"/"& Associates" in the name does NOT auto-drop — go by the team-size note, not the name.
+- KEEP teams of any size unless the note explicitly says DROP. A 3, 8, or 12-person team is a GOOD
+  lead — pick the OWNER/founder/team lead (per the rules above) and use a CANDIDATE email.
+- Drop ONLY if the note says "very large franchise (DROP)" → dropReason "Team too large (N agents)".
+- Drop address-only single-listing microsites with no clear owner → dropReason "Address-only site / team too large".
+- "Group"/"Team"/"& Associates" in the name does NOT drop — go by the note, not the name.
 
 LOCATION — NEVER LEAVE BLANK:
 - Extract from any address: "130 N Preston Rd, Prosper, TX 75078" → "Prosper TX"
@@ -491,7 +516,7 @@ async def enrich_domain_async(domain):
             emails = extract_emails(homepage_html)
             # Only trust a homepage email if it's a PERSON's name (not a role inbox like
             # connect@/info@). A generic homepage email means we still dig to the team page.
-            if emails and has_personal_email(emails, homepage_html):
+            if emails and has_personal_email(emails, homepage_html) and not is_single_listing(homepage_html):
                 print(f"  [{domain}] personal email on homepage: {emails[0]}")
                 html_context = homepage_html
                 step = "html"
@@ -533,19 +558,25 @@ async def enrich_domain_async(domain):
 
                 # Reliable team size = count of distinct agent profile pages (the old name-regex over-counted badly)
                 hint = ""
-                if n_prof >= 6:
-                    hint += (f"TEAM SIZE: {n_prof} individual agent profile pages found — LARGE team/brokerage "
-                             f"(6+ agents). DROP as 'Team too large (6+ agents)'.\n")
-                    print(f"  [{domain}] {n_prof} agent profiles -> LARGE team (6+)")
+                if n_prof >= DROP_TEAM:
+                    hint += (f"TEAM SIZE: {n_prof} agents — very large franchise (>= {DROP_TEAM}). "
+                             f"DROP as 'Team too large ({n_prof} agents)'.\n")
+                    print(f"  [{domain}] {n_prof} agent profiles -> very large franchise (>= {DROP_TEAM})")
                     to_open = profile_links[:2]
                 else:
                     if n_prof:
-                        hint += f"TEAM SIZE: {n_prof} agent profile page(s) found (small team).\n"
-                    to_open = profile_links[:5]
+                        hint += (f"TEAM SIZE: {n_prof} agent profile page(s) — a real team, KEEP it. "
+                                 f"Find the owner/team lead and use THEIR email.\n")
+                    to_open = profile_links[:6]
                     print(f"  [{domain}] {n_prof} agent profiles -> opening {len(to_open)} for personal emails")
 
                 # Open each individual profile page so we capture THAT person's personal email
                 candidates = []  # (name, email)
+                # Homepage emails are ALWAYS candidates — the owner's email often lives in the
+                # homepage footer/contact. Never lose these (this is what broke annemariekyzer).
+                hp_namesake = site_namesake(homepage_html, actual_domain)
+                for em in extract_emails(homepage_html):
+                    candidates.append((hp_namesake, em))
                 for prof_url in to_open:
                     p_html = await fetch_page(page, prof_url, NAV_TIMEOUT)
                     if not p_html: continue
@@ -555,23 +586,29 @@ async def enrich_domain_async(domain):
                     gathered.append((f"profile: {nm}", prof_url, p_html))
                     print(f"  [{domain}] opened profile {nm}: {extract_emails(p_html)[:1] or 'no email'}")
 
+                # dedupe candidates by email, keep order
+                seen_em = set(); uniq = []
+                for nm, em in candidates:
+                    if em.lower() in seen_em: continue
+                    seen_em.add(em.lower()); uniq.append((nm, em))
+                candidates = uniq
                 if candidates:
-                    hint += ("CANDIDATE PEOPLE & THEIR PERSONAL EMAILS (each taken from that person's own profile "
-                             "page — pick the OWNER/FOUNDER and use THEIR email; these are real emails from the "
-                             "site, you may use them):\n")
-                    for nm, em in candidates[:8]:
+                    hint += ("CANDIDATE EMAILS (real emails found on this site — from the homepage/contact or an "
+                             "agent's profile page). Pick the OWNER/FOUNDER's email per the rules above and match "
+                             "the decisionMaker name to whoever owns it. You MAY use any of these:\n")
+                    for nm, em in candidates[:10]:
                         hint += f"- {nm}: {em}\n"
 
                 # Single-property listing microsite? Only flag when we found NO reachable agent — and tell
                 # the AI to find the listing agent FIRST, dropping only if there genuinely isn't one.
                 first_label = domain.split('.')[0]
-                if not candidates and (is_single_listing(homepage_html) or (first_label[:1].isdigit() and n_prof == 0)):
+                if is_single_listing(homepage_html) or (first_label[:1].isdigit() and n_prof == 0):
                     hint += ("SINGLE-PROPERTY LISTING PAGE: this looks like a one-property listing microsite. "
-                             "FIRST identify the listing agent named on it ('Presented by'/'Listed by'/"
-                             "'Listing courtesy of'/agent contact block) and use THEIR personal email if present. "
-                             "ONLY if no individual agent is reachable (just a property, or it belongs to a large "
-                             "team) DROP as 'Address-only site / team too large'.\n")
-                    print(f"  [{domain}] single-listing microsite (no agent profiles) — find agent or drop")
+                             "KEEP it ONLY if a clear individual LISTING AGENT is reachable with an email that "
+                             "belongs to THEM (ideally matching this site's own domain). If the only contact is a "
+                             "shared/two-name-combo email (e.g. jasonlaura@), an email on a DIFFERENT brokerage's "
+                             "domain, or there is no individual agent, DROP as 'Address-only site / team too large'.\n")
+                    print(f"  [{domain}] single-listing microsite — keep only if a clear individual agent")
                 if hint:
                     result['_teamSizeHint'] = hint
 
