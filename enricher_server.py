@@ -54,7 +54,7 @@ PRICING = {  # (input $/M tokens, output $/M tokens)
     "claude-opus-4-8":   (5.0, 25.0),
 }
 PRICE_SEARCH = 10.0 / 1000  # web search: $10 per 1,000 searches
-DROP_TEAM = 15  # only drop as "too large" at this many agents — smaller teams keep + pick the owner
+TEAM_MAX = 8  # keep teams up to this many agents; more than this -> drop as "team too big"
 
 MAILTESTER_KEY = _load_secret('MAILTESTER_KEY')  # optional; email verification skipped if absent
 
@@ -172,9 +172,13 @@ GENERIC_LOCAL = {
 }
 
 def email_matches_person(email, html):
-    """Is this email's prefix a PERSON's name that appears on the page (vs a role word)?"""
+    """Is this email's prefix a PERSON's name that appears on the page (vs a role/group word)?"""
     local = email.split('@')[0].lower()
     if local in GENERIC_LOCAL:
+        return False
+    # A prefix carrying a group/brand word (cordshifletgroup@, smithteam@) is NOT a personal email —
+    # keep digging for the individual's real one.
+    if re.search(r'group|team|homes?|realty|realestate|properties|associates|collective|agency|brokers?|partners|sells', local):
         return False
     local_clean = re.sub(r'[._\-]', '', local)
     text = re.sub(r'<[^>]+>', ' ', html)
@@ -206,6 +210,24 @@ def is_single_listing(html):
     if re.search(r'(for sale|just listed|offered at|schedule a (tour|showing)|listing courtesy|presented by)', t): s += 1
     if re.search(r'(virtual tour|property details|floor ?plan|mls\s*#|listing agent|this (home|property))', t): s += 1
     return s >= 3
+
+def rank_profiles(profile_links, namesake, pages_html):
+    """Order agent-profile URLs so the likely OWNER (namesake match or a title marker) comes first."""
+    nt = set(t for t in re.split(r'[^a-z]+', (namesake or '').lower()) if len(t) >= 3)
+    TITLE = r'(owner|founder|broker[\s\-]?owner|principal|team\s*lead|managing broker|president|\bceo\b|lead agent)'
+    combined = re.sub(r'<[^>]+>', ' ', ' '.join(p or '' for p in pages_html)).lower()
+    scored = []
+    for idx, url in enumerate(profile_links):
+        slug = url.rstrip('/').split('/')[-1].lower()
+        toks = set(re.split(r'[-_]+', slug))
+        score = 0
+        if nt & toks: score += 3                                   # slug matches the brand namesake
+        nm = slug.replace('-', ' ').replace('_', ' ')
+        i = combined.find(nm)
+        if i >= 0 and re.search(TITLE, combined[max(0, i-150):i+150]): score += 2   # title near their name
+        scored.append((-score, idx, url))                          # score desc, then original order
+    scored.sort()
+    return [u for _s, _i, u in scored]
 
 def site_namesake(html, domain):
     """Best guess at the site's person/brand name (for labeling homepage emails)."""
@@ -310,9 +332,9 @@ DECISION MAKER NAME — DO NOT LEAVE BLANK if a person is named anywhere on the 
 TEAM SIZE & WHEN TO DROP:
 - A "TEAM SIZE" and/or "ADDRESS-ONLY SITE" note may appear below — trust it; it is based on the
   actual number of individual agent profile pages found on the site.
-- KEEP teams of any size unless the note explicitly says DROP. A 3, 8, or 12-person team is a GOOD
-  lead — pick the OWNER/founder/team lead (per the rules above) and use a CANDIDATE email.
-- Drop ONLY if the note says "very large franchise (DROP)" → dropReason "Team too large (N agents)".
+- KEEP teams up to 8 agents. A 3, 6, or 8-person team is a GOOD lead — pick the OWNER/founder/team
+  lead (per the rules above) and use a CANDIDATE email.
+- Drop ONLY if the note says the team is bigger than 8 → dropReason "Team too big (N agents)".
 - Drop address-only single-listing microsites with no clear owner → dropReason "Address-only site / team too large".
 - "Group"/"Team"/"& Associates" in the name does NOT drop — go by the note, not the name.
 
@@ -555,26 +577,30 @@ async def enrich_domain_async(domain):
 
                 profile_links = list(dict.fromkeys(profile_links))
                 n_prof = len(profile_links)
+                hp_namesake = site_namesake(homepage_html, actual_domain)
 
-                # Reliable team size = count of distinct agent profile pages (the old name-regex over-counted badly)
+                # Order profiles so the LIKELY OWNER (namesake / title marker) is first, and open only
+                # the top 1-2 — not all of them. We're already in the dig path because the homepage
+                # didn't hand us the owner's personal email, so opening the owner's profile is the point.
+                ranked = rank_profiles(profile_links, hp_namesake, [homepage_html] + [h for _, _, h in gathered])
+
                 hint = ""
-                if n_prof >= DROP_TEAM:
-                    hint += (f"TEAM SIZE: {n_prof} agents — very large franchise (>= {DROP_TEAM}). "
-                             f"DROP as 'Team too large ({n_prof} agents)'.\n")
-                    print(f"  [{domain}] {n_prof} agent profiles -> very large franchise (>= {DROP_TEAM})")
-                    to_open = profile_links[:2]
+                if n_prof > TEAM_MAX:
+                    hint += (f"TEAM SIZE: {n_prof} agents — bigger than {TEAM_MAX}. "
+                             f"DROP as 'Team too big ({n_prof} agents)'.\n")
+                    print(f"  [{domain}] {n_prof} agent profiles -> team too big (> {TEAM_MAX})")
+                    to_open = []  # being dropped anyway — don't waste fetches
                 else:
                     if n_prof:
                         hint += (f"TEAM SIZE: {n_prof} agent profile page(s) — a real team, KEEP it. "
                                  f"Find the owner/team lead and use THEIR email.\n")
-                    to_open = profile_links[:6]
-                    print(f"  [{domain}] {n_prof} agent profiles -> opening {len(to_open)} for personal emails")
+                    to_open = ranked[:2]   # the most-likely-owner profile(s) only
+                    print(f"  [{domain}] {n_prof} profiles -> opening top {len(to_open)} (owner-ranked)")
 
                 # Open each individual profile page so we capture THAT person's personal email
                 candidates = []  # (name, email)
                 # Homepage emails are ALWAYS candidates — the owner's email often lives in the
                 # homepage footer/contact. Never lose these (this is what broke annemariekyzer).
-                hp_namesake = site_namesake(homepage_html, actual_domain)
                 for em in extract_emails(homepage_html):
                     candidates.append((hp_namesake, em))
                 for prof_url in to_open:
