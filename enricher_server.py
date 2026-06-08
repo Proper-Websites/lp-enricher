@@ -322,6 +322,15 @@ THE NAME AND THE EMAIL MUST BE THE SAME PERSON (for individual leads):
 - If the only usable email belongs to Hilary, then decisionMaker is Hilary — do NOT return
   Darlene's name with Hilary's email. Never pair one person's name with another's email.
 
+SOLO-AGENT EXCEPTION (a generic inbox MAY be that one person's email):
+- ONLY when the ENTIRE site is a SINGLE solo agent — exactly ONE person, no team, no other agents.
+- AND you did NOT find that person's own personal email anywhere on the site.
+- THEN their only generic inbox (info@/contact@/hello@/office@, on ANY domain) is reachable as that
+  one person — KEEP it, decisionMaker = the solo agent, emailConfidence "HIGH - solo agent's only inbox".
+- A personal email ALWAYS wins if it exists on the site; the generic inbox is a last resort only.
+- This applies to ONE-PERSON sites only. For 2+ people a generic inbox goes to the TEAM/BRAND name
+  (see TEAM FALLBACK), never to an individual.
+
 TEAM FALLBACK — do NOT drop a real team just because you can't name the individual owner:
 - Priority: (1) the owner's personal email, (2) a named agent's personal email, (3) the team's
   domain-matched main email attributed to the TEAM/BRAND name.
