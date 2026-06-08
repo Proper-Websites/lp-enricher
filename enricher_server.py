@@ -14,6 +14,7 @@ import ssl
 import urllib.request
 import urllib.parse
 import socket
+import csv
 import threading
 import subprocess
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -469,6 +470,121 @@ Return ONLY valid JSON:
             except: pass
         return {"drop":True,"dropReason":f"Parse error: {text[:80]}"}
 
+# ── Export categorization & writing ──────────────────────────────────────────
+# Two independent dimensions per domain:
+#   LP Status (did we find an email?)  -> Accepted / Not-Accepted(+category)   [keyed by DOMAIN]
+#   MailTester Status (is it deliverable?) -> Valid/Catch-All/Invalid/blank    [keyed by EMAIL]
+INDUSTRY = "Luxury Presence"
+
+def _title(s):
+    s = (s or '').strip()
+    # Title-case only all-UPPER or all-lower text; leave mixed case (e.g. "McIvor") untouched.
+    return s.title() if s and (s.isupper() or s.islower()) else s
+
+def _state(s):
+    s = (s or '').strip()
+    return s.upper() if len(s) == 2 else _title(s)   # keep 2-letter codes (MI, CA) uppercase
+
+def _split_name(dm):
+    dm = (dm or '').strip()
+    if not dm:
+        return ('', '')
+    parts = dm.split()
+    return (parts[0], ' '.join(parts[1:]) if len(parts) > 1 else '')
+
+def categorize(lead):
+    """Return (lp_status, layerB_or_category).
+    lp_status: 'Accepted' | 'Not-Accepted'
+    For Accepted -> 'Clean' | 'Unresolved' | 'DNC' (by MailTester).
+    For Not-Accepted -> 'Too big' | 'No email found' | 'Address-only' | 'Site offline' | 'Error' | 'Other'.
+    """
+    email = (lead.get('email') or '').strip()
+    if email and '@' in email:
+        mts = (lead.get('emailStatus') or '').strip().lower()
+        if mts == 'valid':
+            return ('Accepted', 'Clean')
+        if mts == 'invalid':
+            return ('Accepted', 'DNC')
+        return ('Accepted', 'Unresolved')   # Unverifiable / Unverified / blank
+    r = (lead.get('dropReason') or '').lower()
+    if 'address-only' in r or 'address only' in r:               cat = 'Address-only'
+    elif 'too big' in r or 'too large' in r:                     cat = 'Too big'
+    elif 'offline' in r or 'does not resolve' in r:              cat = 'Site offline'
+    elif 'no email' in r or 'no personal email' in r or 'no usable' in r or 'no valid' in r:
+                                                                 cat = 'No email found'
+    elif lead.get('status') == 'error':                          cat = 'Error'
+    else:                                                        cat = 'Other'
+    return ('Not-Accepted', cat)
+
+def _writecsv(path, header, rows):
+    with open(path, 'w', newline='', encoding='utf-8') as f:
+        w = csv.writer(f)
+        w.writerow(header)
+        w.writerows(rows)
+
+def write_exports(leads):
+    """Write the 5 categorized CSVs to ~/.../Lead Cleaning/Outputs/LP Run <stamp>/. Returns (folder, counts)."""
+    stamp = datetime.now().strftime('%Y-%m-%d %H%M')
+    doc = datetime.now().strftime('%Y-%m-%d')
+    pull = f"LP {doc}"
+    outdir = SCRIPT_DIR.parent / 'Outputs' / f'LP Run {stamp}'
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    lp_accepted, lp_not = [], []
+    clean, unresolved, dnc = [], [], []
+    for l in leads:
+        lp, b = categorize(l)
+        if lp == 'Accepted':
+            lp_accepted.append((l, b))
+            (clean if b == 'Clean' else unresolved if b == 'Unresolved' else dnc).append(l)
+        else:
+            lp_not.append((l, b))
+
+    def site(l):  # bare domain
+        return (l.get('domain') or '').replace('https://', '').replace('http://', '').replace('www.', '')
+
+    # 1) LP Accepted — domain-keyed audit (carries MailTester Status so both dimensions are visible)
+    _writecsv(outdir / 'LP Accepted.csv',
+        ['Domain', 'Decision Maker', 'Agent/Team', 'Email', 'MailTester Status', 'City', 'State', 'Type', 'Confidence', 'Phone', 'Date'],
+        [[site(l), l.get('decisionMaker', ''), l.get('agentName', ''), l.get('email', ''),
+          l.get('emailStatus', ''), _title(l.get('city', '')), _state(l.get('state', '')), l.get('type', ''),
+          (l.get('emailConfidence') or l.get('emailConf') or ''), l.get('phone', ''), l.get('date', doc)]
+         for l, _b in lp_accepted])
+
+    # 2) LP Not-Accepted — domain-keyed audit, revisit pile
+    _writecsv(outdir / 'LP Not Accepted.csv',
+        ['Domain', 'Agent/Team', 'Decision Maker', 'Category', 'Reason', 'Date'],
+        [[site(l), l.get('agentName', ''), l.get('decisionMaker', ''), cat, l.get('dropReason', ''), l.get('date', doc)]
+         for l, cat in lp_not])
+
+    # 3) Clean — MailTester Valid, cold-email ready
+    rows = []
+    for l in clean:
+        fn, ln = _split_name(l.get('decisionMaker', ''))
+        rows.append([_title(fn), _title(ln), l.get('email', ''), INDUSTRY, _title(l.get('city', '')),
+                     _state(l.get('state', '')), site(l), l.get('agentName', ''), l.get('phone', ''), 'LP Enricher'])
+    _writecsv(outdir / 'Clean - Luxury Presence.csv',
+        ['First Name', 'Last Name', 'Email', 'Industry', 'City', 'State', 'Website', 'Company', 'Phone', 'Source'], rows)
+
+    # 4) Unresolved — MailTester Catch-All, matches your Unresolved Leads format
+    rows = []
+    for l in unresolved:
+        fn, ln = _split_name(l.get('decisionMaker', ''))
+        rows.append([_title(fn), _title(ln), l.get('email', ''), _title(l.get('city', '')), _state(l.get('state', '')),
+                     INDUSTRY, doc, (l.get('emailStatusDetail') or l.get('emailStatus') or 'Unresolved'), pull])
+    _writecsv(outdir / 'Unresolved - Luxury Presence.csv',
+        ['First Name', 'Last Name', 'Email', 'City', 'State', 'Industry', 'DOC', 'Status', 'Pull #'], rows)
+
+    # 5) DNC — MailTester Invalid only (real dead emails), matches your DO NOT CONTACT format
+    _writecsv(outdir / 'DNC - Luxury Presence.csv',
+        ['Email', 'Industry', 'Domains', 'Status'],
+        [[l.get('email', ''), INDUSTRY, site(l), (l.get('emailStatusDetail') or 'Invalid')] for l in dnc])
+
+    counts = {'lp_accepted': len(lp_accepted), 'lp_not_accepted': len(lp_not),
+              'clean': len(clean), 'unresolved': len(unresolved), 'dnc': len(dnc)}
+    print(f"  EXPORT -> {outdir.name}: {counts}")
+    return (str(outdir), counts)
+
 def cost():
     pin, pout = PRICING.get(MODEL, (1.0, 5.0))
     return (stats['in']/1_000_000*pin) + (stats['out']/1_000_000*pout) + (stats['searches']*PRICE_SEARCH)
@@ -844,6 +960,14 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == '/reset':
             stats.update({'in':0,'out':0,'calls':0,'searches':0,'last_in':0,'last_out':0,'last_searches':0})
             self.send_json({'ok':True})
+        elif self.path == '/export':
+            leads = body.get('leads', [])
+            try:
+                folder, counts = write_exports(leads)
+                self.send_json({'ok': True, 'folder': folder, 'counts': counts})
+            except Exception as e:
+                print(f"  EXPORT ERROR: {e}")
+                self.send_json({'ok': False, 'error': str(e)[:200]}, 500)
         else:
             self.send_response(404); self.end_headers()
 

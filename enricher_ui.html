@@ -211,11 +211,11 @@ select:focus{border-color:var(--blue)}
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.85"/></svg>
         Reset
       </button>
-      <button class="btn btn-green" id="btn-export-leads" onclick="openExport('leads')" disabled>
+      <button class="btn btn-green" id="btn-export-leads" onclick="saveExports()" disabled>
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Export Leads
+        Export &amp; Save All
       </button>
-      <button class="btn btn-red" id="btn-export-dnc" onclick="openExport('dnc')" disabled>
+      <button class="btn btn-red" id="btn-export-dnc" onclick="saveExports()" style="display:none" disabled>
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Export DNC
       </button>
@@ -870,6 +870,7 @@ async function startRun(){
     const dropped=slice.filter(l=>l.status==='dropped').length;
     running=false;
     showToast(`✓ Done — ${valid} leads, ${dropped} dropped, $${cost().toFixed(4)}`);
+    saveExports();   // auto-write the 5 categorized CSVs to Outputs/ when the run completes
   } else if(paused){
     document.getElementById('btn-run').disabled=false;
     running=false;
@@ -965,6 +966,27 @@ function downloadActive(){
   const a=document.createElement('a');
   a.href=url; a.download=filename; a.click();
   URL.revokeObjectURL(url); closeModal(); showToast('✓ Downloaded');
+}
+
+// Categorize all leads and write the 5 CSVs to the Outputs folder (server-side).
+async function saveExports(){
+  if(!leads || !leads.length){ showToast('Nothing to export yet'); return; }
+  showToast('Saving exports…');
+  try{
+    const r = await fetch('http://localhost:3773/export', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({leads})
+    });
+    const d = await r.json();
+    if(d && d.ok){
+      const c = d.counts, folder = (d.folder||'').split('/').pop();
+      showToast(`✓ Saved → Outputs/${folder} · Clean ${c.clean} · Unresolved ${c.unresolved} · DNC ${c.dnc} · Dropped ${c.lp_not_accepted}`);
+    } else {
+      showToast('Export failed: ' + ((d&&d.error)||'unknown'));
+    }
+  } catch(e){
+    showToast('Export failed: ' + e.message);
+  }
 }
 
 function showToast(msg){
