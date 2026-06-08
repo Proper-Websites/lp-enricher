@@ -255,6 +255,16 @@ def extract_nav_links(html, domain):
 
 # ── MailTester Ninja email verification ──────────────────────────────────────
 
+_EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
+def is_real_email(em):
+    """Reject malformed addresses and Cloudflare '[email protected]' placeholders."""
+    em = (em or '').strip()
+    if not _EMAIL_RE.match(em):
+        return False
+    if 'protected' in em.lower() or 'email-protection' in em.lower():
+        return False
+    return True
+
 def verify_email(email):
     """Return (label, detail) from MailTester Ninja. Never raises — failures are 'Unverified'."""
     if not email or '@' not in email or not MAILTESTER_KEY:
@@ -287,6 +297,8 @@ STRICT EMAIL RULES — NO EXCEPTIONS:
 - NEVER output firstname@domain.com or any pattern you invented — only copy what is there
 - If no real email exists in the content: set drop=true, email="", dropReason="No email found in page content"
 - Copy emails EXACTLY character for character — never simplify or modify
+- NEVER return "[email protected]", "email protected", or any Cloudflare email-protection
+  placeholder. If that is the only thing visible, there is NO usable email — set drop=true.
 
 WHO TO PICK (the decision maker worth reaching) — in priority order:
 1. NAMESAKE: if the team/site is named after a person ("The Mack Team", "Luxury Homes by Tina",
@@ -699,9 +711,14 @@ async def enrich_domain_async(domain):
             'dropReason':     p.get('dropReason',''),
         })
 
-        if p.get('drop') or not p.get('email','').strip():
+        email_val = p.get('email', '').strip()
+        if p.get('drop') or not is_real_email(email_val):
             result['status'] = 'dropped'
-            print(f"  [{domain}] DROPPED: {p.get('dropReason','no email')} | cost so far: ${cost():.4f}")
+            if email_val and not is_real_email(email_val):
+                result['email'] = ''
+                result['dropReason'] = (f"Site offline; web search only returned an invalid/placeholder "
+                                        f"email ({email_val[:40]})")
+            print(f"  [{domain}] DROPPED: {result.get('dropReason') or p.get('dropReason','no email')} | cost so far: ${cost():.4f}")
         elif 'CONFIRMED' in p.get('emailConfidence','').upper():
             result['status'] = 'confirmed'
             print(f"  [{domain}] CONFIRMED: {p.get('email')} | cost so far: ${cost():.4f}")
