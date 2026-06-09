@@ -781,10 +781,9 @@ async function enrichLead(i, attempt=1){
     leads[i].agentName     = p.agentName       || '';
     leads[i].decisionMaker = p.decisionMaker   || '';
     leads[i].location      = p.location        || '';
-    // Split location into city/state for separate columns
-    const locParts = (p.location||'').trim().split(/,\s*|\s+(?=[A-Z]{2}$)/);
-    leads[i].city  = locParts.length >= 2 ? locParts.slice(0,-1).join(' ').trim() : (p.location||'');
-    leads[i].state = locParts.length >= 2 ? locParts[locParts.length-1].trim() : '';
+    // Use the server's clean city/state split (no brittle re-split here — that put the state in the city column)
+    leads[i].city          = p.city            || '';
+    leads[i].state         = p.state           || '';
     leads[i].type          = p.type            || '';
     leads[i].email         = p.email           || '';
     leads[i].emailConf     = p.emailConfidence || '';
@@ -832,7 +831,7 @@ async function startRun(){
   document.getElementById('btn-export-leads').disabled=false;
   document.getElementById('btn-export-dnc').disabled=false;
 
-  const BATCH = 3;
+  const BATCH = 5;
   let idx = 0;
   while(idx < limit){
     if(!running||paused) break;

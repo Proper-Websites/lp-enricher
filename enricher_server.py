@@ -17,7 +17,7 @@ import socket
 import csv
 import threading
 import subprocess
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import HTTPServer, ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from datetime import datetime
 
@@ -201,6 +201,61 @@ def email_matches_person(email, html):
 def has_personal_email(emails, html):
     return any(email_matches_person(e, html) for e in emails)
 
+US_STATES = {
+ 'alabama':'AL','alaska':'AK','arizona':'AZ','arkansas':'AR','california':'CA','colorado':'CO',
+ 'connecticut':'CT','delaware':'DE','florida':'FL','georgia':'GA','hawaii':'HI','idaho':'ID',
+ 'illinois':'IL','indiana':'IN','iowa':'IA','kansas':'KS','kentucky':'KY','louisiana':'LA',
+ 'maine':'ME','maryland':'MD','massachusetts':'MA','michigan':'MI','minnesota':'MN','mississippi':'MS',
+ 'missouri':'MO','montana':'MT','nebraska':'NE','nevada':'NV','new hampshire':'NH','new jersey':'NJ',
+ 'new mexico':'NM','new york':'NY','north carolina':'NC','north dakota':'ND','ohio':'OH','oklahoma':'OK',
+ 'oregon':'OR','pennsylvania':'PA','rhode island':'RI','south carolina':'SC','south dakota':'SD',
+ 'tennessee':'TN','texas':'TX','utah':'UT','vermont':'VT','virginia':'VA','washington':'WA',
+ 'west virginia':'WV','wisconsin':'WI','wyoming':'WY','district of columbia':'DC'}
+_STATE_ABBRS = set(US_STATES.values())
+
+def extract_address(text):
+    """Best 'City, ST' from the page. Prefer a full address with ZIP; else 'City, ST' with a VALID
+    state code. Returns (city, state) or ('','')."""
+    t = re.sub(r'<[^>]+>', ' ', text or '')
+    def _clean(c):
+        c = c.strip(); w = c.split()
+        return ' '.join(w[-2:]) if len(w) > 3 else c
+    for pat in (r"([A-Za-z][A-Za-z .'\-]{1,28}),\s*([A-Z]{2})\b\s+\d{5}",                  # City, ST 12345
+                r"\b([A-Z][a-zA-Z.'\-]+(?:\s[A-Z][a-zA-Z.'\-]+){0,2}),\s*([A-Z]{2})\b"):   # City, ST
+        for m in re.finditer(pat, t):
+            if m.group(2).upper() in _STATE_ABBRS:
+                return (_clean(m.group(1)), m.group(2).upper())
+    # City, Full State Name  (e.g. "Atlanta, Georgia")
+    for m in re.finditer(r"\b([A-Z][a-zA-Z.'\-]+(?:\s[A-Z][a-zA-Z.'\-]+){0,2}),\s*([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\b", t):
+        full = m.group(2).strip().lower()
+        if full in US_STATES:
+            return (_clean(m.group(1)), US_STATES[full])
+    return ('', '')
+
+def split_city_state(loc):
+    """Split an AI 'City ST' / 'City, State Name' into (city, 2-letter state)."""
+    loc = (loc or '').strip().rstrip('.').strip()
+    if not loc:
+        return ('', '')
+    if loc.lower() in US_STATES:                          # just a state name -> state only, no city
+        return ('', US_STATES[loc.lower()])
+    if len(loc) == 2 and loc.upper() in _STATE_ABBRS:     # just "GA"
+        return ('', loc.upper())
+    if ',' in loc:
+        city, st = [x.strip() for x in loc.rsplit(',', 1)]
+    else:
+        parts = loc.split()
+        if len(parts) >= 2 and len(parts[-1]) == 2 and parts[-1].upper() in _STATE_ABBRS:
+            city, st = ' '.join(parts[:-1]), parts[-1]
+        elif len(parts) >= 3 and ' '.join(parts[-2:]).lower() in US_STATES:
+            city, st = ' '.join(parts[:-2]), ' '.join(parts[-2:])
+        elif len(parts) >= 2 and parts[-1].lower() in US_STATES:
+            city, st = ' '.join(parts[:-1]), parts[-1]
+        else:
+            return (loc, '')
+    st_abbr = US_STATES.get(st.lower(), st.upper() if len(st) == 2 else '')
+    return (city, st_abbr)
+
 def is_single_listing(html):
     """Heuristic: does this page look like a single-PROPERTY listing microsite (not an agent site)?"""
     t = re.sub(r'<[^>]+>', ' ', html or '').lower()
@@ -338,12 +393,14 @@ SOLO-AGENT EXCEPTION (a generic inbox MAY be that one person's email):
   treat as a team (TEAM FALLBACK) or drop. When in doubt, never attribute a generic inbox to an individual.
 
 TEAM FALLBACK — do NOT drop a real team just because you can't name the individual owner:
-- Priority: (1) the owner's personal email, (2) a named agent's personal email, (3) the team's
-  domain-matched main email attributed to the TEAM/BRAND name.
-- If a real team/brokerage has a main contact email that matches its domain (e.g.
-  ds@smithrealtycollective.com for "Smith Realty Collective"; or the only email is info@/contact@/
-  a shared inbox), KEEP it: set decisionMaker to the TEAM/BRAND name (read it from the page, e.g.
-  "Smith Realty Collective"), use that email, emailConfidence "HIGH - team contact email".
+- Priority: (1) owner's personal email, (2) a named agent's personal email, (3) a shared/domain inbox
+  attributed to the PERSON it obviously belongs to, else to the TEAM/BRAND name.
+- If a shared or INITIALS inbox clearly maps to a NAMED team member, use THAT person as decisionMaker:
+  e.g. ds@smithrealtycollective.com on a team that lists "Derrick Smith" -> decisionMaker = Derrick Smith
+  (initials D.S. match); jsmith@ -> the John/Jane Smith on the team. Use the matching named person.
+- Otherwise set decisionMaker to the TEAM/BRAND name read from the page (e.g. "Smith Realty Collective").
+  emailConfidence "HIGH - team contact email".
+- NEVER leave decisionMaker BLANK when you are returning an email — always name the person, or the brand.
 - Only drop if there is NO usable email at all, or it is address-only / a very-large-franchise (DROP note).
 
 TWO-NAME TEAM EMAILS (jasonlaura@, johnandjane@):
@@ -828,16 +885,16 @@ async def enrich_domain_async(domain):
             if source_url:
                 confidence_with_source += f" ({source_url})"
 
-        # Split location into city and state
-        raw_loc = p.get('location','')
-        city_val, state_val = '', ''
-        if raw_loc:
-            parts = [x.strip() for x in raw_loc.replace(',','').split()]
-            if len(parts) >= 2:
-                state_val = parts[-1]
-                city_val = ' '.join(parts[:-1])
-            elif len(parts) == 1:
-                city_val = parts[0]
+        # City/State — prefer a real structured address (City, ST ZIP) found on the page over the AI's
+        # text (fixes served-area cities like Macon vs the real office Atlanta); else split the AI value.
+        raw_loc = p.get('location', '')
+        # Trust the AI's location FIRST — it gives the office/market city (e.g. Holland), not a random
+        # listing address. Only when it's blank/incomplete, scan the FULL page for a 'City, ST'.
+        city_val, state_val = split_city_state(raw_loc)
+        if not (city_val and state_val):
+            c2, s2 = extract_address(' '.join(filter(None, [homepage_html, html_context])))
+            if not city_val:  city_val = c2
+            if not state_val: state_val = s2
 
         result.update({
             'agentName':      p.get('agentName',''),
@@ -1026,7 +1083,7 @@ if __name__ == '__main__':
     time.sleep(1)
     subprocess.Popen(['open', f'http://localhost:{PORT}'])
 
-    server = HTTPServer(('localhost', PORT), Handler)
+    server = ThreadingHTTPServer(('localhost', PORT), Handler)  # handle the UI's parallel batch concurrently
     try:
         server.serve_forever()
     except KeyboardInterrupt:
